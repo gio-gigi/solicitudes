@@ -25,14 +25,14 @@ class FormularioSolicitud(models.Model):
         return f"Formulario: {self.nombre}"
 
 
-    TIPO_CAMPO = [
-        ('text', 'Texto corto'),
-        ('textarea', 'Texto largo'),
-        ('number', 'Número'),
-        ('date', 'Fecha'),
-        ('select', 'Selección'),
-        ('file', 'Archivo'),
-    ]
+TIPO_CAMPO = [
+    ('text', 'Texto corto'),
+    ('textarea', 'Texto largo'),
+    ('number', 'Número'),
+    ('date', 'Fecha'),
+    ('select', 'Selección'),
+    ('file', 'Archivo'),
+]
 class CampoFormulario(models.Model):
 
     formulario = models.ForeignKey(FormularioSolicitud, on_delete=models.CASCADE, related_name='campos')

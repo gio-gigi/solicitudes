@@ -26,7 +26,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tipo_solicitudes',
-    'solicitudes_app'
+    'solicitudes_app',
+    'atender_solicitudes',
 ]
 
 MIDDLEWARE = [
