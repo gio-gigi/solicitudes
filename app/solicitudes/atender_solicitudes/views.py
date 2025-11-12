@@ -11,7 +11,6 @@ from .forms import CerrarSolicitudForm
 # Debe ser remplazado por redirecciones en producción.
 
 # @login_required
-@csrf_exempt
 def marcar_solicitud_en_proceso(request, solicitud_id: int):
 	if request.method != 'POST':
 		messages.error(request, 'Método no permitido.')
@@ -32,7 +31,6 @@ def marcar_solicitud_en_proceso(request, solicitud_id: int):
 	return JsonResponse({'mensaje': 'La solicitud fue marcada como En proceso.'})
 
 # @login_required
-@csrf_exempt
 def cerrar_solicitud(request, solicitud_id: int):
 	solicitud = get_object_or_404(Solicitud, id=solicitud_id)
 	ultimo = solicitud.seguimientos.order_by('-fecha_creacion').first()
