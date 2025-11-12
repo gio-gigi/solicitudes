@@ -11,6 +11,19 @@ from .forms import CerrarSolicitudForm
 # Debe ser remplazado por redirecciones en producción.
 
 # @login_required
+def atender_solicitud(request, solicitud_id: int):
+	if request.method != 'GET':
+		messages.error(request, 'Método no permitido.')
+		return JsonResponse({'error': 'Metodo no permitido.'}, status=405)
+	solicitud = get_object_or_404(Solicitud, id=solicitud_id)
+	ultimo = solicitud.seguimientos.order_by('-fecha_creacion').first()
+	context = {
+		'solicitud': solicitud,
+		'ultimo': ultimo
+	}
+	return render(request, 'atender_solicitud.html', context)
+
+# @login_required
 def marcar_solicitud_en_proceso(request, solicitud_id: int):
 	if request.method != 'POST':
 		messages.error(request, 'Método no permitido.')
@@ -26,9 +39,7 @@ def marcar_solicitud_en_proceso(request, solicitud_id: int):
 		return JsonResponse({'error': 'No se puede cambiar el estatus: la solicitud no está en estado Creada.'}, status=400)
 	SeguimientoSolicitud.objects.create(solicitud=solicitud, estatus='2', observaciones='')
 	messages.success(request, 'La solicitud fue marcada como En proceso.')
-	# return redirect('bienvenida')
-	# Regresar JsonResponse por ahora
-	return JsonResponse({'mensaje': 'La solicitud fue marcada como En proceso.'})
+	return redirect('atender_solicitud', solicitud_id=solicitud_id)
 
 # @login_required
 def cerrar_solicitud(request, solicitud_id: int):
@@ -58,5 +69,4 @@ def cerrar_solicitud(request, solicitud_id: int):
 		observaciones=observaciones
 	)
 	messages.success(request, 'Solicitud cerrada correctamente.')
-	# return redirect('bienvenida')
-	return JsonResponse({'mensaje': 'Solicitud cerrada correctamente.', 'estatus': estatus})
+	return redirect('atender_solicitud', solicitud_id=solicitud_id)
