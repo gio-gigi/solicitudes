@@ -1,42 +1,24 @@
-Característica: Seguimiento de solicitudes propias
-    Como usuario del sistema
-    Quiero poder gestionar el seguimiento de mis solicitudes
-    Para conocer el estado y progreso de mis documentales
+Característica: Visualización y seguimiento de solicitudes
+  Como usuario del sistema
+  Quiero ver mis solicitudes y su historial
+  Para conocer su progreso real
 
+  Escenario: Ver listado de solicitudes existentes
+    Dado que estoy en la página de listado de solicitudes
+    Entonces debo ver una tabla con al menos una solicitud
 
-    Escenario: Visualizar lista de mis solicitudes
-        Dado que he iniciado sesión en el sistema con mi perfil de usuario
-        Cuando navego a la sección "Mis Solicitudes"
-        Entonces debo ver una lista con todas mis solicitudes creadas
-        Y cada solicitud debe mostrar su estado actual entre en proceso, Cancelado o Completado
+  Escenario: Acceder al detalle de una solicitud
+    Dado que estoy en la página de listado de solicitudes
+    Cuando hago clic en el botón "Atender" de la primera solicitud
+    Entonces debo ver el detalle de la solicitud
+    Y debo ver un historial de seguimiento con al menos un registro
 
+  Escenario: Filtrar solicitudes por estado específico
+    Dado que estoy en la página de listado de solicitudes
+    Cuando aplico filtro por estado "Cancelada"
+    Entonces solo veo las solicitudes en estado "Cancelada"
 
-    Escenario: Ver detalles completos de una solicitud propia
-        Dado que tengo una solicitud creada en el sistema
-        Cuando selecciono una solicitud específica de mi lista
-        Entonces puedo ver el estado de la solicitud
-
-
-    Escenario: Marcar solicitud como completada
-        Dado que tengo una solicitud en estado "En proceso"
-        Cuando cambio el estado a "Completado"
-        Entonces el sistema registra la fecha de completado
-        Y la solicitud aparece como finalizada en mi lista
-        Y ya no permite más cambios de estado
-
-
-    Escenario: Cancelar solicitud propia
-        Dado que tengo una solicitud en cualquier estado
-        Cuando selecciono la opción "Cancelar solicitud"
-        Entonces el sistema solicita confirmación de cancelación
-        Y al confirmar, el estado cambia a "Cancelado"
-
-
-    Escenario: Filtrar solicitudes por estado específico
-        Dado que tengo solicitudes en diferentes estados
-        Cuando aplico filtro por estado "En proceso"
-        Entonces solo veo las solicitudes en estado "En proceso"
-        Y el contador de resultados se actualiza según el filtro aplicado
-        Y puedo remover el filtro para ver todas las solicitudes
-
-
+  Escenario: Buscar un folio específico
+    Dado que estoy en la página de listado de solicitudes
+    Cuando escribo "FOLIO12345" en el buscador de folios
+    Entonces debo ver en la tabla una fila con el folio "FOLIO12345"
