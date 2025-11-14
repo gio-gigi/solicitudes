@@ -1,11 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from .forms import FormTipoSolicitud
-from .models import TipoSolicitud
-from .funcionalidad import FuncionesAvanzadas
-from .models import TipoSolicitud, FormularioSolicitud, CampoFormulario, Solicitud, RespuestaCampo, ArchivoAdjunto
-from .models import SeguimientoSolicitud
+from .models import (
+    TipoSolicitud, FormularioSolicitud, CampoFormulario,
+    Solicitud, RespuestaCampo, ArchivoAdjunto, SeguimientoSolicitud
+)
 import uuid
-
 
 
 def bienvenida(request):
@@ -13,13 +13,11 @@ def bienvenida(request):
 
 
 def lista_solicitudes(request):
-    funciones_avanzadas = FuncionesAvanzadas()
-    resultado = funciones_avanzadas.calculo_extremo(2, 2)
     context = {
-        'tipo_solicitudes': TipoSolicitud.objects.all(),
-        'resultado': resultado
+        'tipo_solicitudes': TipoSolicitud.objects.all()
     }
-    return render(request, 'lista_tipo_solicitudes.html', context)
+    return render(request, 'solicitudes/lista_tipo_solicitudes.html', context)
+
 
 def agregar(request):
     if request.method == 'POST':
@@ -29,19 +27,17 @@ def agregar(request):
             return redirect('lista_tipo_solicitudes')
     else:
         form = FormTipoSolicitud()
-    context = {
-        'form': form
-    }
-    return render(request, 'agregar_solicitud.html', context)
+
+    return render(request, 'agregar_solicitud.html', {'form': form})
 
 
+@login_required
 def crear_solicitud(request, tipo_id):
     tipo = get_object_or_404(TipoSolicitud, id=tipo_id)
     formulario = tipo.formulario
     campos = formulario.campos.all()
 
     if request.method == 'POST':
-        # Crear folio único
         folio = str(uuid.uuid4())[:8]
 
         solicitud = Solicitud.objects.create(
@@ -50,7 +46,6 @@ def crear_solicitud(request, tipo_id):
             folio=folio
         )
 
-        # Guardar respuestas
         for campo in campos:
             valor = request.POST.get(campo.nombre, '')
 
@@ -60,7 +55,6 @@ def crear_solicitud(request, tipo_id):
                 valor=valor
             )
 
-            # Si es archivo
             if campo.tipo == 'file':
                 archivos = request.FILES.getlist(campo.nombre)
                 for archivo in archivos:
@@ -73,25 +67,27 @@ def crear_solicitud(request, tipo_id):
 
         return redirect('mis_solicitudes')
 
-    context = {
+    return render(request, 'solicitudes/crear_solicitud.html', {
         'tipo': tipo,
         'formulario': formulario,
         'campos': campos
-    }
-    return render(request, 'alumno/crear_solicitud.html', context)
+    })
 
+
+@login_required
 def mis_solicitudes(request):
     solicitudes = Solicitud.objects.filter(usuario=request.user).order_by('-fecha_creacion')
-    return render(request, 'alumno/mis_solicitudes.html', {'solicitudes': solicitudes})
+    return render(request, 'solicitudes/mis_solicitudes.html', {'solicitudes': solicitudes})
 
 
+@login_required
 def detalle_solicitud(request, solicitud_id):
     solicitud = get_object_or_404(Solicitud, id=solicitud_id, usuario=request.user)
 
     respuestas = solicitud.respuestas.all()
     seguimientos = SeguimientoSolicitud.objects.filter(solicitud=solicitud).order_by('-fecha_creacion')
 
-    return render(request, 'alumno/detalle_solicitud.html', {
+    return render(request, 'solicitudes/detalle_solicitud.html', {
         'solicitud': solicitud,
         'respuestas': respuestas,
         'seguimientos': seguimientos
