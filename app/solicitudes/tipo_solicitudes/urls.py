@@ -8,4 +8,6 @@ urlpatterns = [
     path('formularios/', views.lista_formularios, name='lista_formularios'),
     path('formularios/crear/', views.crear_o_editar_formulario, name='crear_formulario'),
     path('formularios/editar/<int:pk>/', views.crear_o_editar_formulario, name='editar_formulario'),
+    path('formularios/campos/<int:formulario_id>/', views.crear_campos, name='crear_campos'),
+    path('formularios/campos/<int:campo_id>/eliminar/', views.eliminar_campo, name='eliminar_campo'),
 ]
