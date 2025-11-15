@@ -1,22 +1,29 @@
 {% extends 'blank.html' %}
 
 {% block contenido %}
-  <h1>Tipo de solicitudes</h1>
-  <h5>Resultado: {{resultado}}</h5>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>Descripción</th>
-      </tr>
-    </thead>
-    <tbody id="bodyTipoSolicitudes">
-      {% for tipo_solicitud in tipo_solicitudes  %}
-        <tr>
-          <td>{{tipo_solicitud.nombre}}</td>
-          <td>{{tipo_solicitud.descripcion}}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <h1>Tipo de solicitudes</h1>
+  <h5>Elige el tipo de solicitud que deseas crear:</h5>
+  
+    <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Descripción</th>
+                <th>Acciones</th> 
+      </tr>
+    </thead>
+    <tbody id="bodyTipoSolicitudes">
+      {% for tipo_solicitud in tipo_solicitudes  %}
+        <tr>
+          <td>{{tipo_solicitud.nombre}}</td>
+          <td>{{tipo_solicitud.descripcion}}</td>
+          <td>
+            <a href="{% url 'crear_solicitud' tipo_solicitud.id %}" class="btn btn-primary btn-sm">
+              Crear
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 {% endblock contenido %}
