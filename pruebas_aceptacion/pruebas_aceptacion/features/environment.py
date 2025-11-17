@@ -1,7 +1,14 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import os
+import sys
 import django
+
+# Añadir la carpeta 'app/solicitudes' al PYTHONPATH para que 'import solicitudes.settings' funcione
+# La estructura del repo es: <repo>/app/solicitudes/solicitudes/settings.py
+base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'app', 'solicitudes'))
+if base not in sys.path:
+    sys.path.insert(0, base)
 
 # Configurar Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'solicitudes.settings')
