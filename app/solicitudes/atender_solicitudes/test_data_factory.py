@@ -2,10 +2,8 @@
 Factory para crear datos de prueba de solicitudes.
 Puede ser usado en Django TestCase o como comando de gestión.
 """
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.utils import timezone
-
-User = get_user_model()
 from tipo_solicitudes.models import (
     TipoSolicitud, FormularioSolicitud, CampoFormulario,
     Solicitud, RespuestaCampo, SeguimientoSolicitud, ArchivoAdjunto
