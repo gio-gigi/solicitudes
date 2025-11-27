@@ -3,6 +3,7 @@ import os
 import csv
 import io
 import json
+from pyexpat.errors import messages
 from django.http import HttpResponse
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, render, redirect
@@ -398,3 +399,178 @@ def eliminar_campo(request, campo_id):
     formulario_id = campo.formulario.id
     campo.delete()
     return redirect('crear_campos', formulario_id=formulario_id)
+
+
+# ----------------------
+#  VISTAS DE SOLICITUDES
+# ----------------------
+@login_required
+def crear_solicitud_usuario(request):
+    """Vista para que un usuario cree una solicitud"""
+    tipos_disponibles = TipoSolicitud.objects.all()
+
+    tipo_id = request.GET.get('tipo')
+    formulario_solicitud = None
+    campos = []
+
+    if tipo_id:
+        try:
+            tipo = get_object_or_404(TipoSolicitud, id=tipo_id)
+            formulario_solicitud = FormularioSolicitud.objects.get(tipo_solicitud=tipo)
+            campos = formulario_solicitud.campos.all().order_by('orden')
+        except FormularioSolicitud.DoesNotExist:
+            messages.error(request, 'Este tipo de solicitud no tiene formulario configurado.')
+            return redirect('crear_solicitud_usuario')
+
+    if request.method == 'POST' and tipo_id:
+        tipo = get_object_or_404(TipoSolicitud, id=tipo_id)
+        
+        try:
+            formulario_solicitud = get_object_or_404(FormularioSolicitud, tipo_solicitud=tipo)
+        except:
+            messages.error(request, 'No se encontró el formulario para este tipo de solicitud.')
+            return redirect('crear_solicitud_usuario')
+            
+        campos = formulario_solicitud.campos.all().order_by('orden')
+
+        errores = []
+        
+        # Validar campos requeridos
+        for campo in campos:
+            if campo.requerido:
+                if campo.tipo == 'file':
+                    archivos = request.FILES.getlist(f'campo_{campo.id}')
+                    if not archivos:
+                        errores.append(f'El campo "{campo.etiqueta}" es obligatorio')
+                else:
+                    valor = request.POST.get(f'campo_{campo.id}', '').strip()
+                    if not valor:
+                        errores.append(f'El campo "{campo.etiqueta}" es obligatorio')
+
+        if errores:
+            for error in errores:
+                messages.error(request, error)
+        else:
+            # Crear la solicitud
+            folio = generar_folio_unico()
+            solicitud = Solicitud.objects.create(
+                usuario=request.user,
+                tipo_solicitud=tipo,
+                folio=folio,
+                estatus='1'  # Creada
+            )
+
+            # Guardar las respuestas
+            for campo in campos:
+                if campo.tipo == 'file':
+                    archivos = request.FILES.getlist(f'campo_{campo.id}')
+                    if archivos:
+                        respuesta = RespuestaCampo.objects.create(
+                            solicitud=solicitud,
+                            campo=campo,
+                            valor=f'{len(archivos)} archivo(s) adjunto(s)'
+                        )
+
+                        # Guardar cada archivo
+                        for archivo in archivos[:campo.cantidad_archivos]:
+                            ArchivoAdjunto.objects.create(
+                                respuesta=respuesta,
+                                solicitud=solicitud,
+                                archivo=archivo,
+                                nombre=archivo.name
+                            )
+                else:
+                    valor = request.POST.get(f'campo_{campo.id}', '')
+                    RespuestaCampo.objects.create(
+                        solicitud=solicitud,
+                        campo=campo,
+                        valor=valor
+                    )
+
+            # Crear el seguimiento inicial
+            SeguimientoSolicitud.objects.create(
+                solicitud=solicitud,
+                estatus='1',
+                observaciones='Solicitud creada por el usuario'
+            )
+
+            messages.success(request, f'Solicitud creada exitosamente. Folio: {folio}')
+            return redirect('mis_solicitudes')
+
+    context = {
+        'tipos_disponibles': tipos_disponibles,
+        'formulario_solicitud': formulario_solicitud,
+        'campos': campos,
+        'tipo_seleccionado': tipo_id
+    }
+    return render(request, 'tipo_solicitudes/crear_solicitud.html', context)
+
+@login_required
+def mis_solicitudes(request):
+    """Vista para que el usuario vea sus propias solicitudes"""
+    solicitudes = Solicitud.objects.filter(
+        usuario=request.user
+    ).order_by('-fecha_creacion')
+
+    estatus_filtro = request.GET.get('estatus')
+    if estatus_filtro:
+        solicitudes = solicitudes.filter(estatus=estatus_filtro)
+
+    context = {
+        'solicitudes': solicitudes,
+        'estatus_choices': ESTATUS,
+        'estatus_filtro': estatus_filtro
+    }
+    return render(request, 'tipo_solicitudes/mis_solicitudes.html', context)
+
+
+@login_required
+def detalle_solicitud(request, solicitud_id):
+    """Vista para ver el detalle completo de una solicitud"""
+    solicitud = get_object_or_404(Solicitud, id=solicitud_id)
+
+    puede_ver = (
+        solicitud.usuario == request.user or
+        request.user.puede_atender_solicitudes() or
+        request.user.puede_ver_dashboard()
+    )
+
+    if not puede_ver:
+        messages.error(request, 'No tienes permiso para ver esta solicitud.')
+        return redirect('mis_solicitudes')
+
+    respuestas = solicitud.respuestas.all().select_related('campo')
+    seguimientos = solicitud.seguimientos.all().order_by('-fecha_creacion')
+
+    context = {
+        'solicitud': solicitud,
+        'respuestas': respuestas,
+        'seguimientos': seguimientos,
+        'estatus_dict': dict(ESTATUS)
+    }
+    return render(request, 'tipo_solicitudes/detalle_solicitud.html', context)
+
+
+@login_required
+def seguimiento_solicitud(request, solicitud_id):
+    """Vista para ver el seguimiento de una solicitud específica"""
+    solicitud = get_object_or_404(Solicitud, id=solicitud_id)
+
+    puede_ver = (
+        solicitud.usuario == request.user or
+        request.user.puede_atender_solicitudes() or
+        request.user.puede_ver_dashboard()
+    )
+
+    if not puede_ver:
+        messages.error(request, 'No tienes permiso para ver esta solicitud.')
+        return redirect('mis_solicitudes')
+
+    seguimientos = solicitud.seguimientos.all().order_by('-fecha_creacion')
+
+    context = {
+        'solicitud': solicitud,
+        'seguimientos': seguimientos,
+        'estatus_dict': dict(ESTATUS)
+    }
+    return render(request, 'tipo_solicitudes/seguimiento_solicitud.html', context)
