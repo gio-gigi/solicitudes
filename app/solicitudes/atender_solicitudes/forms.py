@@ -19,7 +19,7 @@ class CerrarSolicitudForm(forms.Form):
         required=True,
         widget=forms.Textarea,
         error_messages={
-            'required': 'Las observaciones son obligatorias.'
+            'required': 'Las observaciones son obligatorias al cerrar la solicitud.'
         }
     )
 
