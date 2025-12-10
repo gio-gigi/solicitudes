@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -12,8 +13,17 @@ class AtenderSolicitudesViewsTests(TestCase):
         User = get_user_model()
         # Usuario "responsable"
         self.usuario = User.objects.create_user(
-            username="responsable", password="pass1234"
+            username='control1',
+            email='control@test.com',
+            password='testpass123',
+            first_name='Control',
+            last_name='Escolar',
+            rol='control_escolar'
         )
+        # Autenticar el cliente de prueba
+        self.client.force_login(self.usuario)
+
+        self.client.post(reverse('solicitudes_app:perfil'))
 
         # Tipo de solicitud mínimo
         self.tipo = TipoSolicitud.objects.create(
@@ -28,6 +38,10 @@ class AtenderSolicitudesViewsTests(TestCase):
             tipo_solicitud=self.tipo,
             folio="SOL-TEST-0001",
         )
+
+    def _get_messages(self, response):
+        """Helper para obtener los mensajes flash de una respuesta."""
+        return [str(m) for m in get_messages(response.wsgi_request)]
 
     # ---------- atender_solicitud ----------
 
@@ -77,6 +91,10 @@ class AtenderSolicitudesViewsTests(TestCase):
             "-fecha_creacion").first()
         self.assertEqual(ultimo.estatus, "2")
 
+        # Validar mensaje de éxito
+        mensajes = self._get_messages(resp)
+        self.assertIn("La solicitud fue marcada como En proceso.", mensajes)
+
     def test_marcar_en_proceso_falla_si_ultimo_no_es_creada(self):
         SeguimientoSolicitud.objects.create(
             solicitud=self.solicitud,
@@ -86,19 +104,30 @@ class AtenderSolicitudesViewsTests(TestCase):
         url = reverse("marcar_solicitud_en_proceso", args=[self.solicitud.id])
         resp = self.client.post(url)
 
-        self.assertEqual(resp.status_code, 400)
-        data = json.loads(resp.content.decode())
-        # Mensaje genérico de error
-        self.assertIn("No se puede cambiar el estatus", data["error"])
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp.url, reverse("atender_solicitud", args=[self.solicitud.id])
+        )
         self.assertEqual(self.solicitud.seguimientos.count(), 1)
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertTrue(
+            any("No se puede cambiar el estatus" in m for m in mensajes)
+        )
 
     def test_marcar_en_proceso_metodo_no_post(self):
         url = reverse("marcar_solicitud_en_proceso", args=[self.solicitud.id])
         resp = self.client.get(url)
 
-        self.assertEqual(resp.status_code, 405)
-        data = json.loads(resp.content.decode())
-        self.assertEqual(data["error"], "Metodo no permitido.")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp.url, reverse("atender_solicitud", args=[self.solicitud.id])
+        )
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn("Método no permitido.", mensajes)
 
     # ---------- cerrar_solicitud ----------
 
@@ -115,14 +144,15 @@ class AtenderSolicitudesViewsTests(TestCase):
             data={"estatus": "3", "observaciones": "Termino"},
         )
 
-        self.assertEqual(resp.status_code, 400)
-        data = json.loads(resp.content.decode())
-        # Aquí Django ya decodifica los acentos del JSON (\u00e1 -> á)
+        self.assertEqual(resp.status_code, 302)
         self.assertEqual(
-            data["error"],
-            "Solo se puede cerrar si está En proceso.",
+            resp.url, reverse("atender_solicitud", args=[self.solicitud.id])
         )
         self.assertEqual(self.solicitud.seguimientos.count(), 1)
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn("Solo se puede cerrar si está En proceso.", mensajes)
 
     def test_cerrar_solicitud_con_form_valido_crea_seguimiento_terminada(self):
         SeguimientoSolicitud.objects.create(
@@ -144,7 +174,11 @@ class AtenderSolicitudesViewsTests(TestCase):
         self.assertEqual(ultimo.estatus, "3")
         self.assertEqual(ultimo.observaciones, "Atendida correctamente")
 
-    def test_cerrar_solicitud_con_form_invalido_regresa_400(self):
+        # Validar mensaje de éxito
+        mensajes = self._get_messages(resp)
+        self.assertIn("Solicitud cerrada correctamente.", mensajes)
+
+    def test_cerrar_solicitud_con_form_invalido_regresa_redirect(self):
         SeguimientoSolicitud.objects.create(
             solicitud=self.solicitud,
             estatus="2",  # En proceso
@@ -157,17 +191,16 @@ class AtenderSolicitudesViewsTests(TestCase):
         }
         resp = self.client.post(url, data=data)
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp.url, reverse("atender_solicitud", args=[self.solicitud.id])
+        )
+        # No se crea seguimiento nuevo
+        self.assertEqual(self.solicitud.seguimientos.count(), 1)
 
-        # El JSON viene doble:
-        # {"error": "{\"estatus\": [{\"message\": \"Estatus inválido...\", ...}]}"}
-        outer = json.loads(resp.content.decode())
-        self.assertIn("error", outer)
-
-        inner = json.loads(outer["error"])
-        self.assertIn("estatus", inner)
-        mensaje = inner["estatus"][0]["message"]
-        self.assertIn("Estatus inválido", mensaje)
+        # Validar que hay mensaje de error del formulario
+        mensajes = self._get_messages(resp)
+        self.assertTrue(len(mensajes) > 0)
 
     def test_cerrar_solicitud_metodo_no_post(self):
         SeguimientoSolicitud.objects.create(
@@ -178,9 +211,14 @@ class AtenderSolicitudesViewsTests(TestCase):
         url = reverse("cerrar_solicitud", args=[self.solicitud.id])
         resp = self.client.get(url)
 
-        self.assertEqual(resp.status_code, 405)
-        data = json.loads(resp.content.decode())
-        self.assertEqual(data["error"], "Método no permitido.")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp.url, reverse("atender_solicitud", args=[self.solicitud.id])
+        )
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn("Método no permitido.", mensajes)
 
     # ---------- listar_solicitudes ----------
 
@@ -233,3 +271,119 @@ class AtenderSolicitudesViewsTests(TestCase):
         contenido = resp.content.decode()
         self.assertIn("BUSCAR-ME", contenido)
         self.assertNotIn("OTRA-SOL", contenido)
+
+    def test_listar_solicitudes_filtra_por_estatus_2(self):
+        sol = Solicitud.objects.create(
+            usuario=self.usuario,
+            tipo_solicitud=self.tipo,
+            folio="SOL-EN-PROCESO",
+        )
+        SeguimientoSolicitud.objects.create(
+            solicitud=sol, estatus="2", observaciones="En proceso"
+        )
+
+        url = reverse("listar_solicitudes")
+        resp = self.client.get(url, {"estatus": "2"})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("SOL-EN-PROCESO", resp.content.decode())
+
+    def test_listar_solicitudes_per_page_invalido_usa_default(self):
+        url = reverse("listar_solicitudes")
+        resp = self.client.get(url, {"per_page": "abc"})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["per_page"], 10)
+
+    def test_listar_solicitudes_per_page_no_permitido_usa_default(self):
+        url = reverse("listar_solicitudes")
+        resp = self.client.get(url, {"per_page": "99"})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["per_page"], 10)
+
+    # ---------- Pruebas de permisos por rol ----------
+
+    def test_atender_solicitud_sin_permiso_redirige_a_bienvenida(self):
+        # Crear tipo con responsable diferente (2 = responsable_programa)
+        tipo_otro = TipoSolicitud.objects.create(
+            nombre="Otro tipo",
+            descripcion="Otro",
+            responsable="2",
+        )
+        solicitud_otro = Solicitud.objects.create(
+            usuario=self.usuario,
+            tipo_solicitud=tipo_otro,
+            folio="SOL-OTRO",
+        )
+        SeguimientoSolicitud.objects.create(
+            solicitud=solicitud_otro, estatus="1", observaciones="Creada"
+        )
+
+        url = reverse("atender_solicitud", args=[solicitud_otro.id])
+        resp = self.client.get(url)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("bienvenida"))
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn(
+            "No tienes permiso para atender esta solicitud.", mensajes
+        )
+
+    def test_marcar_en_proceso_sin_permiso_redirige_a_bienvenida(self):
+        tipo_otro = TipoSolicitud.objects.create(
+            nombre="Otro tipo 2",
+            descripcion="Otro",
+            responsable="3",  # responsable_tutorias
+        )
+        solicitud_otro = Solicitud.objects.create(
+            usuario=self.usuario,
+            tipo_solicitud=tipo_otro,
+            folio="SOL-OTRO-2",
+        )
+        SeguimientoSolicitud.objects.create(
+            solicitud=solicitud_otro, estatus="1", observaciones="Creada"
+        )
+
+        url = reverse("marcar_solicitud_en_proceso", args=[solicitud_otro.id])
+        resp = self.client.post(url)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("bienvenida"))
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn(
+            "No tienes permiso para atender esta solicitud.", mensajes
+        )
+
+    def test_cerrar_solicitud_sin_permiso_redirige_a_bienvenida(self):
+        tipo_otro = TipoSolicitud.objects.create(
+            nombre="Otro tipo 3",
+            descripcion="Otro",
+            responsable="4",  # director
+        )
+        solicitud_otro = Solicitud.objects.create(
+            usuario=self.usuario,
+            tipo_solicitud=tipo_otro,
+            folio="SOL-OTRO-3",
+        )
+        SeguimientoSolicitud.objects.create(
+            solicitud=solicitud_otro, estatus="2", observaciones="En proceso"
+        )
+
+        url = reverse("cerrar_solicitud", args=[solicitud_otro.id])
+        resp = self.client.post(
+            url, data={"estatus": "3", "observaciones": "Cerrada"}
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("bienvenida"))
+
+        # Validar mensaje de error
+        mensajes = self._get_messages(resp)
+        self.assertIn(
+            "No tienes permiso para atender esta solicitud.", mensajes
+        )

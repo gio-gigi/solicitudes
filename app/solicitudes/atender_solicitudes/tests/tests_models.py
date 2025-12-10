@@ -1,6 +1,6 @@
 # app/solicitudes/atender_solicitudes/tests/test_models.py
 from django.test import TestCase
-from atender_solicitudes.test_data_factory import (
+from .data.test_data_factory import (
     crear_datos_de_prueba,
     limpiar_datos_de_prueba,
 )
