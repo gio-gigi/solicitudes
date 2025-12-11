@@ -71,7 +71,7 @@
                 ><span>Formularios de solicitud</span></a
                 >
               </li>
-              {% if user.is_authenticated and user.rol == 'alumno' %}
+              {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'crear_solicitud_usuario' %}"
                 ><i class="fas fa-plus-circle"></i
@@ -85,13 +85,15 @@
               >
             </li>
              {% endif %}
-            {% if user.is_authenticated and user.puede_atender_solicitudes %}
+            {% if user.is_authenticated %}
+              {% if user.puede_atender_solicitudes or user.rol == 'administrador' or user.rol == 'control_escolar' %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'listar_solicitudes' %}"
                 ><i class="fas fa-clipboard"></i
                 ><span>Atender solicitudes</span></a
               >
             </li>
+              {% endif %}
             {% endif %}
             <li class="nav-item">
               <a
@@ -107,6 +109,14 @@
                 ><i class="fa fa-bar-chart"></i><span>Metricas</span></a
               >
             </li>
+            
+            {% if user.is_authenticated and user.puede_gestionar_usuarios %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'solicitudes_app:lista_usuarios' %}"
+                ><i class="fas fa-users"></i><span>Gestionar Usuarios</span></a
+              >
+            </li>
+            {% endif %}
           </ul>
           <div class="text-center d-none d-md-inline">
             <button
@@ -318,16 +328,6 @@
                         ></i
                         >&nbsp;Mi Perfil</a
                       >
-                      {% if user.puede_gestionar_usuarios %}
-                      <a
-                        class="dropdown-item"
-                        href="{% url 'solicitudes_app:lista_usuarios' %}"
-                        ><i
-                          class="fas fa-users me-2 fa-sm fa-fw text-gray-400"
-                        ></i
-                        >&nbsp;Gestionar Usuarios</a
-                      >
-                      {% endif %}
                       <div class="dropdown-divider"></div>
                       <a
                         class="dropdown-item"

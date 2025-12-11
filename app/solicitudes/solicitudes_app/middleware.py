@@ -7,11 +7,12 @@ class CompletarPerfilMiddleware:
     Middleware que redirige a los usuarios que deben cambiar su contraseña
     o completar su perfil
     """
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
-        
-        # URLs que no requieren redirección (permitir acceso sin perfil completo)
+
+        # URLs que no requieren redirección
+        # (permitir acceso sin perfil completo)
         self.urls_permitidas = [
             '/auth/logout/',
             '/auth/perfil/',
@@ -20,23 +21,36 @@ class CompletarPerfilMiddleware:
             '/static/',
             '/media/',
         ]
-    
+
+    def _es_url_permitida(self, ruta):
+        """Verifica si la ruta actual está en URLs permitidas"""
+        return any(ruta.startswith(url) for url in self.urls_permitidas)
+
+    def _obtener_url_destino(self, user):
+        """Obtiene URL de destino según estado del usuario"""
+        if user.debe_cambiar_password:
+            return reverse('solicitudes_app:cambiar_password')
+        if not user.perfil_completo:
+            return reverse('solicitudes_app:perfil')
+        return None
+
+    def _obtener_redireccion_necesaria(self, user, ruta_actual):
+        """Determina si el usuario necesita ser redirigido"""
+        if self._es_url_permitida(ruta_actual):
+            return None
+
+        url_destino = self._obtener_url_destino(user)
+        if url_destino and ruta_actual != url_destino:
+            return url_destino
+
+        return None
+
     def __call__(self, request):
-        # Si el usuario está autenticado
         if request.user.is_authenticated:
-            # Verificar si la URL actual está en las permitidas
-            ruta_actual = request.path
-            es_url_permitida = any(ruta_actual.startswith(url) for url in self.urls_permitidas)
-            
-            # Si debe cambiar contraseña y no está en la página de cambio
-            if request.user.debe_cambiar_password and not es_url_permitida:
-                if ruta_actual != reverse('solicitudes_app:cambiar_password'):
-                    return redirect('solicitudes_app:cambiar_password')
-            
-            # Si no tiene perfil completo y no está en las páginas permitidas
-            elif not request.user.perfil_completo and not es_url_permitida:
-                if ruta_actual != reverse('solicitudes_app:perfil'):
-                    return redirect('solicitudes_app:perfil')
-        
+            url_redireccion = self._obtener_redireccion_necesaria(
+                request.user, request.path)
+            if url_redireccion:
+                return redirect(url_redireccion)
+
         response = self.get_response(request)
         return response

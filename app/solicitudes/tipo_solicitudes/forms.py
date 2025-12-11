@@ -1,17 +1,21 @@
 from django import forms
-from .models import ArchivoAdjunto, RespuestaCampo, SeguimientoSolicitud, TipoSolicitud, FormularioSolicitud, CampoFormulario, TIPO_CAMPO, Solicitud
+from .models import (ArchivoAdjunto, RespuestaCampo, SeguimientoSolicitud,
+                     TipoSolicitud, FormularioSolicitud, CampoFormulario,
+                     Solicitud)
+
 
 class FormTipoSolicitud(forms.ModelForm):
     class Meta:
         model = TipoSolicitud
         fields = '__all__'
-        
+
         widgets = {
-            'nombre': forms.TextInput(attrs={'class':'form-control'}),
-            'descripcion': forms.Textarea(attrs={'class':'form-control', 'rows':6, 'style':'resize: none;'}),
-            'responsable': forms.Select(attrs={'class':'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 6, 'style': 'resize: none;'}),
+            'responsable': forms.Select(attrs={'class': 'form-control'}),
         }
-        
+
+
 class FormFormularioSolicitud(forms.ModelForm):
     class Meta:
         model = FormularioSolicitud
@@ -22,15 +26,17 @@ class FormFormularioSolicitud(forms.ModelForm):
             'descripcion': 'Instrucciones o Descripción'
         }
         widgets = {
-            'tipo_solicitud': forms.Select(attrs={'class':'form-control'}),
-            'nombre': forms.TextInput(attrs={'class':'form-control'}),
-            'descripcion': forms.Textarea(attrs={'class':'form-control', 'rows':6, 'style':'resize: none;'}),
+            'tipo_solicitud': forms.Select(attrs={'class': 'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 6, 'style': 'resize: none;'}),
         }
-        
+
+
 class FormCampoFormulario(forms.ModelForm):
     class Meta:
         model = CampoFormulario
-        fields = ['formulario', 'nombre', 'etiqueta', 'tipo', 'requerido', 'opciones', 'cantidad_archivos', 'orden']
+        fields = ['formulario', 'nombre', 'etiqueta', 'tipo',
+                  'requerido', 'opciones', 'cantidad_archivos', 'orden']
         labels = {
             'nombre': 'Nombre interno del campo',
             'etiqueta': 'Texto visible para el usuario',
@@ -40,15 +46,15 @@ class FormCampoFormulario(forms.ModelForm):
             'cantidad_archivos': 'Cantidad de archivos permitidos',
             'orden': 'Posición en el formulario',
         }
-        
+
         widgets = {
-            'nombre': forms.TextInput(attrs={'class':'form-control'}),
-            'etiqueta': forms.TextInput(attrs={'class':'form-control'}),
-            'tipo': forms.Select(attrs={'class':'form-control'}),
-            'requerido' :forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'opciones': forms.Textarea(attrs={'class':'form-control', 'rows':6}),
-            'cantidad_archivos': forms.NumberInput(attrs={'class':'form-control'}),
-            'orden': forms.NumberInput(attrs={'class':'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'etiqueta': forms.TextInput(attrs={'class': 'form-control'}),
+            'tipo': forms.Select(attrs={'class': 'form-control'}),
+            'requerido': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'opciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
+            'cantidad_archivos': forms.NumberInput(attrs={'class': 'form-control'}),
+            'orden': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -69,7 +75,8 @@ class FormCampoFormulario(forms.ModelForm):
             ).exists()
 
             if existe:
-                raise forms.ValidationError("Ese número de orden ya está en uso para este formulario.")
+                raise forms.ValidationError(
+                    "Ese número de orden ya está en uso para este formulario.")
 
         return orden
 
@@ -79,31 +86,35 @@ class FormCampoFormulario(forms.ModelForm):
         opciones = cleaned.get('opciones')
 
         if tipo == 'select' and (not opciones or opciones.strip() == ""):
-            raise forms.ValidationError("Debes agregar opciones separadas por comas para un campo select.")
+            raise forms.ValidationError(
+                "Debes agregar opciones separadas por comas para un campo select.")
 
         if tipo == 'file':
             cant = cleaned.get('cantidad_archivos')
             if not cant or cant < 1:
-                raise forms.ValidationError("Debe permitir al menos 1 archivo.")
+                raise forms.ValidationError(
+                    "Debe permitir al menos 1 archivo.")
 
         return cleaned
-
 
 
 class FormSolicitud(forms.ModelForm):
     class Meta:
         model = Solicitud
         exclude = ['usuario', 'folio', 'fecha_creacion']
-        
+
+
 class FormRespuestaCampo(forms.ModelForm):
     class Meta:
         model = RespuestaCampo
         fields = ['valor']
-        
+
+
 class FormSeguimientoSolicitud(forms.ModelForm):
     class Meta:
         model = SeguimientoSolicitud
-        fields = ['observaciones', 'estatus'] 
+        fields = ['observaciones', 'estatus']
+
 
 class FormArchivoAdjunto(forms.ModelForm):
     class Meta:

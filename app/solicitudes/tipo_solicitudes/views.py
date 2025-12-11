@@ -1,34 +1,38 @@
-from datetime import datetime, timedelta
-import os
 import csv
 import io
 import json
-from django.contrib import messages  
-from django.db.models import Count
-from django.shortcuts import get_object_or_404, render, redirect
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from reportlab.lib.pagesizes import letter, A4
+from django.db.models import Count, Max
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render, redirect
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
-from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                Paragraph, Spacer, PageBreak, Image)
+
+from .forms import (FormCampoFormulario, FormFormularioSolicitud,
+                    FormTipoSolicitud)
+from .models import (ESTATUS, RESPOSABLES, SeguimientoSolicitud, Solicitud,
+                     TipoSolicitud, ArchivoAdjunto, CampoFormulario,
+                     FormularioSolicitud, RespuestaCampo)
 import matplotlib
 matplotlib.use('Agg')  # Backend sin GUI
-import matplotlib.pyplot as plt
-from .forms import FormArchivoAdjunto, FormCampoFormulario, FormFormularioSolicitud, FormSolicitud, FormTipoSolicitud
-from .models import ESTATUS, RESPOSABLES, SeguimientoSolicitud, Solicitud, TipoSolicitud, ArchivoAdjunto, CampoFormulario, FormularioSolicitud, RespuestaCampo
-from .funcionalidad import FuncionesAvanzadas
-from django.db.models import Max
+
 
 @login_required
 def bienvenida(request):
     return render(request, 'bienvenida.html')
 
+
 @login_required
 def lista_solicitudes(request):
-    funciones_avanzadas = FuncionesAvanzadas()
-
     context = {
         'tipo_solicitudes': TipoSolicitud.objects.all(),
         'resultado': TipoSolicitud.objects.all().count
@@ -42,32 +46,34 @@ def agregar(request):
         form = FormTipoSolicitud(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('lista_tipo_solicitudes')   
+            return redirect('lista_tipo_solicitudes')
     else:
         form = FormTipoSolicitud()
 
     return render(request, 'agregar_solicitud.html', {'form': form})
 
+
 @login_required
 def obtener_solicitudes(request):
     solicitudes = Solicitud.objects.all()
-    tipos_solicitudes = TipoSolicitud.objects.all()
     contexto_solicitudes = {
         'solicitudes': solicitudes
     }
     return contexto_solicitudes
 
+
 def filtrar_solicitudes_fecha(solicitudes, dia, mes, semana):
-    if dia!= 0:
+    if dia != 0:
         solicitudes = solicitudes.filter(fecha_creacion__day=dia)
-    elif mes!=0:
+    elif mes != 0:
         solicitudes = solicitudes.filter(fecha_creacion__month=mes)
-    elif semana!=0:
+    elif semana != 0:
         year = datetime.now().year
         inicio = datetime.fromisocalendar(year, semana, 1)
         fin = datetime.fromisocalendar(year, semana, 7)
         solicitudes = solicitudes.filter(fecha_creacion__range=[inicio, fin])
     return solicitudes
+
 
 def solicitudes_por_tipo(solicitudes_filtradas):
     solicitudes = (
@@ -85,6 +91,7 @@ def solicitudes_por_tipo(solicitudes_filtradas):
     ]
     return data
 
+
 @login_required
 def vista_tres_graficas(request):
     hoy = datetime.now().date()
@@ -94,9 +101,11 @@ def vista_tres_graficas(request):
     data_hoy = solicitudes_por_tipo(solicitudes_hoy)
     inicio_semana = datetime.fromisocalendar(hoy.year, semana, 1)
     fin_semana = datetime.fromisocalendar(hoy.year, semana, 7)
-    solicitudes_semana = solicitudes.filter(fecha_creacion__range=[inicio_semana, fin_semana])
+    solicitudes_semana = solicitudes.filter(
+        fecha_creacion__range=[inicio_semana, fin_semana])
     data_semana = solicitudes_por_tipo(solicitudes_semana)
-    solicitudes_mes = solicitudes.filter(fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
+    solicitudes_mes = solicitudes.filter(
+        fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
     data_mes = solicitudes_por_tipo(solicitudes_mes)
     context = {
         "hoy": data_hoy,
@@ -105,18 +114,21 @@ def vista_tres_graficas(request):
     }
     return render(request, "grafica.html", context)
 
+
 @login_required
 def generar_pdf_graficas(request):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="graficas_solicitudes.pdf"'
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72,
+                            leftMargin=72, topMargin=72, bottomMargin=18)
     elements = []
     styles = getSampleStyleSheet()
-    
+
     # Estilos personalizados
-    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#1458b1'), spaceAfter=30, alignment=TA_CENTER)
-    
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor(
+        '#1458b1'), spaceAfter=30, alignment=TA_CENTER)
+
     # Estilo para la tabla
     table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1458b1')),
@@ -130,29 +142,31 @@ def generar_pdf_graficas(request):
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('GRID', (0, 0), (-1, -1), 1, colors.black)
     ])
-    
+
     # Título principal
     title = Paragraph("Tendencias de Solicitudes", title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.2*inch))
-    
+
     # Obtener datos
     hoy = datetime.now()
     anio, semana, _ = hoy.isocalendar()
     solicitudes = Solicitud.objects.all().select_related('usuario', 'tipo_solicitud')
-    
+
     # Datos para gráficas
     solicitudes_hoy = solicitudes.filter(fecha_creacion__date=hoy)
     data_hoy = solicitudes_por_tipo(solicitudes_hoy)
-    
+
     inicio_semana = datetime.fromisocalendar(hoy.year, semana, 1)
     fin_semana = datetime.fromisocalendar(hoy.year, semana, 7)
-    solicitudes_semana = solicitudes.filter(fecha_creacion__range=[inicio_semana, fin_semana])
+    solicitudes_semana = solicitudes.filter(
+        fecha_creacion__range=[inicio_semana, fin_semana])
     data_semana = solicitudes_por_tipo(solicitudes_semana)
-    
-    solicitudes_mes = solicitudes.filter(fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
+
+    solicitudes_mes = solicitudes.filter(
+        fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
     data_mes = solicitudes_por_tipo(solicitudes_mes)
-    
+
     def crear_grafico(data, titulo):
         if not data:
             return None
@@ -163,23 +177,24 @@ def generar_pdf_graficas(request):
         if len(data_sorted) > 5:
             otros_total = sum(item['total'] for item in data_sorted[5:])
             data_top.append({'tipo': 'Otros', 'total': otros_total})
-        
+
         fig, ax = plt.subplots(figsize=(10, 6))
         tipos = [item['tipo'] for item in data_top]
         totales = [item['total'] for item in data_top]
-        colores_barras = ['#c9a24d', '#202146', '#d7d7d7', '#c9a24d', '#202146', '#888888']
-        
-        
+        colores_barras = ['#c9a24d', '#202146',
+                          '#d7d7d7', '#c9a24d', '#202146', '#888888']
+
         # Usar posiciones numéricas para las barras
         x_positions = range(len(tipos))
         # Ancho fijo de barra (máximo 0.6, pero se ajusta si hay pocas barras)
         bar_width = min(0.6, 0.4) if len(tipos) <= 2 else 0.6
-        
-        bars = ax.bar(x_positions, totales, color=colores_barras[:len(tipos)], width=bar_width)
-        
+
+        ax.bar(x_positions, totales,
+               color=colores_barras[:len(tipos)], width=bar_width)
+
         max_valor = max(totales) if totales else 1
         ax.set_ylim(0, max_valor * 1.5)
-        
+
         # Establecer límites fijos en el eje X para que las barras no ocupen todo el espacio
         # Siempre mostrar al menos 5 espacios para que las barras se vean proporcionales
         min_categories = 5
@@ -187,11 +202,11 @@ def generar_pdf_graficas(request):
             ax.set_xlim(-0.5, min_categories - 0.5)
         else:
             ax.set_xlim(-0.5, len(tipos) - 0.5)
-        
+
         ax.set_xlabel('Tipo de Solicitud', fontweight='bold', fontsize=11)
         ax.set_ylabel('Número de Solicitudes', fontweight='bold', fontsize=11)
         ax.set_title(titulo, fontsize=14, fontweight='bold', pad=20)
-        
+
         tipos_formateados = []
         for tipo in tipos:
             if len(tipo) > 20:  # Si es muy largo, acortar
@@ -202,46 +217,52 @@ def generar_pdf_graficas(request):
                     linea1 = []
                     linea2 = []
                     chars_linea1 = 0
-                    
+
                     for i, palabra in enumerate(palabras):
                         if chars_linea1 + len(palabra) <= 20:
                             linea1.append(palabra)
                             chars_linea1 += len(palabra) + 1
                         elif i < len(palabras) - 1:
                             linea2.append(palabra)
-                    
+
                     if linea2 and len(' '.join(linea2)) > 20:
                         # Si la segunda línea es muy larga, acortar con "..."
                         linea2_texto = ' '.join(linea2)
                         linea2_texto = linea2_texto[:17] + '...'
-                        tipos_formateados.append(' '.join(linea1) + '\n' + linea2_texto)
+                        tipos_formateados.append(
+                            ' '.join(linea1) + '\n' + linea2_texto)
                     else:
-                        tipos_formateados.append(' '.join(linea1) + '\n' + ' '.join(linea2))
+                        tipos_formateados.append(
+                            ' '.join(linea1) + '\n' + ' '.join(linea2))
                 else:
                     # Partir en la mitad si son pocas palabras pero texto largo
                     mitad = len(tipo) // 2
                     espacio = tipo.find(' ', mitad)
                     if espacio != -1:
-                        tipos_formateados.append(tipo[:espacio] + '\n' + tipo[espacio+1:])
+                        tipos_formateados.append(
+                            tipo[:espacio] + '\n' + tipo[espacio+1:])
                     else:
-                        tipos_formateados.append(tipo[:20] + '\n' + tipo[20:40])
+                        tipos_formateados.append(
+                            tipo[:20] + '\n' + tipo[20:40])
             else:
                 tipos_formateados.append(tipo)
-                
+
         ax.set_xticks(range(len(tipos)))
         ax.set_xticklabels(tipos_formateados, fontsize=9, ha='center')
         plt.yticks(fontsize=10)
-        
+
         for i, v in enumerate(totales):
-            ax.text(i, v + (max_valor * 0.02), str(v), ha='center', va='bottom', fontweight='bold', fontsize=11)
-            
+            ax.text(i, v + (max_valor * 0.02), str(v), ha='center',
+                    va='bottom', fontweight='bold', fontsize=11)
+
         ax.yaxis.grid(True, linestyle='--', alpha=0.3)
         ax.set_axisbelow(True)
-        
+
         plt.tight_layout(pad=2.0)
 
         img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.savefig(img_buffer, format='png', dpi=150,
+                    bbox_inches='tight', facecolor='white', edgecolor='none')
         img_buffer.seek(0)
         plt.close()
         return img_buffer
@@ -257,64 +278,70 @@ def generar_pdf_graficas(request):
                 elements.append(img)
                 elements.append(Spacer(1, 0.3*inch))
         else:
-            elements.append(Paragraph("No hay datos para este período", styles['Normal']))
+            elements.append(
+                Paragraph("No hay datos para este período", styles['Normal']))
             elements.append(Spacer(1, 0.3*inch))
 
     # Agregar gráficas
     agregar_seccion(data_hoy, "Solicitudes de Hoy")
     agregar_seccion(data_semana, "Solicitudes de Esta Semana")
     agregar_seccion(data_mes, "Solicitudes de Este Mes")
-    
+
     # Agregar tabla con todas las solicitudes
     elements.append(PageBreak())  # Nueva página para la tabla
-    
+
     # Título de la tabla
-    table_title = Paragraph("Detalle de Todas las Solicitudes", styles['Heading1'])
+    table_title = Paragraph(
+        "Detalle de Todas las Solicitudes", styles['Heading1'])
     elements.append(table_title)
     elements.append(Spacer(1, 0.3*inch))
-    
+
     # Preparar datos para la tabla
-    table_data = [['ID', 'Usuario', 'Tipo de Solicitud', 'Folio', 'Fecha de Creación']]
-    
+    table_data = [['ID', 'Usuario', 'Tipo de Solicitud',
+                   'Folio', 'Fecha de Creación']]
+
     for solicitud in solicitudes:
         table_data.append([
             str(solicitud.id),
             solicitud.usuario.username if solicitud.usuario else 'N/A',
             solicitud.tipo_solicitud.nombre if solicitud.tipo_solicitud else 'N/A',
             solicitud.folio or 'N/A',
-            solicitud.fecha_creacion.strftime("%Y-%m-%d %H:%M:%S") if solicitud.fecha_creacion else 'N/A'
+            solicitud.fecha_creacion.strftime(
+                "%Y-%m-%d %H:%M:%S") if solicitud.fecha_creacion else 'N/A'
         ])
-    
+
     # Crear tabla
     tabla = Table(table_data)
     tabla.setStyle(table_style)
-    
+
     # Ajustar el tamaño de la tabla si hay muchas columnas
     tabla_width = doc.width
     col_widths = [
         tabla_width * 0.1,
-        tabla_width * 0.2, 
-        tabla_width * 0.25, 
-        tabla_width * 0.15, 
-        tabla_width * 0.3    
+        tabla_width * 0.2,
+        tabla_width * 0.25,
+        tabla_width * 0.15,
+        tabla_width * 0.3
     ]
-    
+
     tabla = Table(table_data, colWidths=col_widths)
     tabla.setStyle(table_style)
-    
+
     # Agregar la tabla al documento
     elements.append(tabla)
     elements.append(Spacer(1, 0.3*inch))
-    
+
     # Resumen al final
     elements.append(Spacer(1, 0.2*inch))
-    total_solicitudes = Paragraph(f"Total de solicitudes en el sistema: {solicitudes.count()}", styles['Heading3'])
+    total_solicitudes = Paragraph(
+        f"Total de solicitudes en el sistema: {solicitudes.count()}", styles['Heading3'])
     elements.append(total_solicitudes)
-    
-    fecha_generacion = Paragraph(f"Reporte generado el {hoy.strftime('%d/%m/%Y a las %H:%M:%S')}", styles['Normal'])
+
+    fecha_generacion = Paragraph(
+        f"Reporte generado el {hoy.strftime('%d/%m/%Y a las %H:%M:%S')}", styles['Normal'])
     elements.append(Spacer(1, 0.1*inch))
     elements.append(fecha_generacion)
-    
+
     # Construir PDF
     doc.build(elements)
     pdf = buffer.getvalue()
@@ -322,16 +349,20 @@ def generar_pdf_graficas(request):
     response.write(pdf)
     return response
 
+
 @login_required
 def generar_csv_graficas(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="solicitudes.csv"'
     writer = csv.writer(response)
-    writer.writerow(['ID', 'Usuario', 'Tipo de Solicitud', 'Folio', 'Fecha de Creacion'])
+    writer.writerow(['ID', 'Usuario', 'Tipo de Solicitud',
+                    'Folio', 'Fecha de Creacion'])
     solicitudes = Solicitud.objects.all()
     for s in solicitudes:
-        writer.writerow([s.id, s.usuario.username, s.tipo_solicitud.nombre, s.folio, s.fecha_creacion.strftime("%Y-%m-%d %H:%M:%S")])
+        writer.writerow([s.id, s.usuario.username, s.tipo_solicitud.nombre,
+                        s.folio, s.fecha_creacion.strftime("%Y-%m-%d %H:%M:%S")])
     return response
+
 
 @login_required
 def metricas(request):
@@ -366,12 +397,12 @@ def metricas(request):
 
     # Obtener el último estatus de cada solicitud desde SeguimientoSolicitud
     from django.db.models import OuterRef, Subquery
-    
+
     # Subconsulta para obtener el último seguimiento de cada solicitud
     ultimo_seguimiento = SeguimientoSolicitud.objects.filter(
         solicitud=OuterRef('pk')
     ).order_by('-fecha_creacion')
-    
+
     status_counts_query = (
         Solicitud.objects
         .annotate(ultimo_estatus=Subquery(ultimo_seguimiento.values('estatus')[:1]))
@@ -380,7 +411,8 @@ def metricas(request):
         .order_by('ultimo_estatus')
     )
 
-    status_counts = {item['ultimo_estatus']: item['count'] for item in status_counts_query if item['ultimo_estatus']}
+    status_counts = {item['ultimo_estatus']: item['count']
+                     for item in status_counts_query if item['ultimo_estatus']}
 
     status_map = dict(ESTATUS)
     status_series = [{
@@ -391,21 +423,23 @@ def metricas(request):
 
     # Cálculo del promedio de resolución basado en SeguimientoSolicitud
     promedio_resolucion = None
-    
+
     # Obtener todas las solicitudes que tienen un seguimiento con estatus '3' (Terminada)
     solicitudes_terminadas = Solicitud.objects.filter(
         seguimientos__estatus='3'
     ).distinct()
-    
+
     if solicitudes_terminadas.exists():
         total_seconds = 0
         count = 0
-        
+
         for solicitud in solicitudes_terminadas:
             # Obtener el primer seguimiento (inicio) y el último con estatus '3' (terminado)
-            primer_seguimiento = solicitud.seguimientos.order_by('fecha_creacion').first()
-            seguimiento_terminado = solicitud.seguimientos.filter(estatus='3').order_by('-fecha_creacion').first()
-            
+            primer_seguimiento = solicitud.seguimientos.order_by(
+                'fecha_creacion').first()
+            seguimiento_terminado = solicitud.seguimientos.filter(
+                estatus='3').order_by('-fecha_creacion').first()
+
             if primer_seguimiento and seguimiento_terminado:
                 # Usar fecha_terminacion si está disponible, sino usar fecha_creacion
                 fecha_fin = seguimiento_terminado.fecha_terminacion if seguimiento_terminado.fecha_terminacion else seguimiento_terminado.fecha_creacion
@@ -413,10 +447,10 @@ def metricas(request):
                 delta = fecha_fin - primer_seguimiento.fecha_creacion
                 total_seconds += delta.total_seconds()
                 count += 1
-        
+
         if count > 0:
             avg_seconds = total_seconds / count
-            
+
             # Formatear el tiempo de forma más precisa
             if avg_seconds < 60:
                 # Menos de 1 minuto
@@ -449,6 +483,7 @@ def metricas(request):
 
     return render(request, "tipo_solicitudes/metricas.html", context)
 
+
 @login_required
 def lista_formularios(request):
     context = {
@@ -457,9 +492,11 @@ def lista_formularios(request):
     }
     return render(request, 'lista_formulario.html', context)
 
+
 def generar_folio_unico():
     import uuid
     return f"FOLIO-{uuid.uuid4().hex[:8].upper()}"
+
 
 @login_required
 def crear_o_editar_formulario(request, pk=None):
@@ -469,24 +506,25 @@ def crear_o_editar_formulario(request, pk=None):
 
     if request.method == 'POST':
         form = FormFormularioSolicitud(request.POST, instance=instancia)
-        
+
         if form.is_valid():
             form.save()
             return redirect('lista_formularios')
     else:
         form = FormFormularioSolicitud(instance=instancia)
-        
+
     if instancia:
         titulo = "Editar Formulario de Solicitud"
     else:
         titulo = "Crear Nuevo Formulario de Solicitud"
-        
+
     context = {
         'form': form,
         'titulo': titulo,
         'instancia': instancia,
     }
     return render(request, 'crear_formulario_solicitud.html', context)
+
 
 @login_required
 def crear_campos(request, formulario_id):
@@ -500,7 +538,8 @@ def crear_campos(request, formulario_id):
 
             # Si el usuario no pone orden o pone 0 → poner al final
             if not nuevo_campo.orden or nuevo_campo.orden == 0:
-                max_orden = formulario.campos.aggregate(Max('orden'))['orden__max'] or 0
+                max_orden = formulario.campos.aggregate(
+                    Max('orden'))['orden__max'] or 0
                 nuevo_campo.orden = max_orden + 1
 
             nuevo_campo.save()
@@ -541,36 +580,42 @@ def crear_solicitud_usuario(request):
     if tipo_id:
         try:
             tipo = get_object_or_404(TipoSolicitud, id=tipo_id)
-            formulario_solicitud = FormularioSolicitud.objects.get(tipo_solicitud=tipo)
+            formulario_solicitud = FormularioSolicitud.objects.get(
+                tipo_solicitud=tipo)
             campos = formulario_solicitud.campos.all().order_by('orden')
         except FormularioSolicitud.DoesNotExist:
-            messages.error(request, 'Este tipo de solicitud no tiene formulario configurado.')
+            messages.error(
+                request, 'Este tipo de solicitud no tiene formulario configurado.')
             return redirect('crear_solicitud_usuario')
 
     if request.method == 'POST' and tipo_id:
         tipo = get_object_or_404(TipoSolicitud, id=tipo_id)
-        
+
         try:
-            formulario_solicitud = get_object_or_404(FormularioSolicitud, tipo_solicitud=tipo)
-        except:
-            messages.error(request, 'No se encontró el formulario para este tipo de solicitud.')
+            formulario_solicitud = get_object_or_404(
+                FormularioSolicitud, tipo_solicitud=tipo)
+        except Exception:
+            messages.error(
+                request, 'No se encontró el formulario para este tipo de solicitud.')
             return redirect('crear_solicitud_usuario')
-            
+
         campos = formulario_solicitud.campos.all().order_by('orden')
 
         errores = []
-        
+
         # Validar campos requeridos
         for campo in campos:
             if campo.requerido:
                 if campo.tipo == 'file':
                     archivos = request.FILES.getlist(f'campo_{campo.id}')
                     if not archivos:
-                        errores.append(f'El campo "{campo.etiqueta}" es obligatorio')
+                        errores.append(
+                            f'El campo "{campo.etiqueta}" es obligatorio')
                 else:
                     valor = request.POST.get(f'campo_{campo.id}', '').strip()
                     if not valor:
-                        errores.append(f'El campo "{campo.etiqueta}" es obligatorio')
+                        errores.append(
+                            f'El campo "{campo.etiqueta}" es obligatorio')
 
         if errores:
             for error in errores:
@@ -619,7 +664,8 @@ def crear_solicitud_usuario(request):
                 observaciones='Solicitud creada por el usuario'
             )
 
-            messages.success(request, f'Solicitud creada exitosamente. Folio: {folio}')
+            messages.success(
+                request, f'Solicitud creada exitosamente. Folio: {folio}')
             return redirect('mis_solicitudes')
 
     context = {
@@ -629,6 +675,7 @@ def crear_solicitud_usuario(request):
         'tipo_seleccionado': tipo_id
     }
     return render(request, 'tipo_solicitudes/crear_solicitud.html', context)
+
 
 @login_required
 def mis_solicitudes(request):
