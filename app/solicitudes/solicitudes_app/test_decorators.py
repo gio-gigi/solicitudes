@@ -379,7 +379,7 @@ class DecoradorPuedeAtenderSolicitudesTest(TestCase):
         # Verificar contenido del mensaje
         message_text = str(message_list[0])
         self.assertIn('permiso', message_text.lower())
-        self.assertIn('atender solicitudes', message_text.lower())
+        self.assertIn('atender', message_text.lower())
 
 
 

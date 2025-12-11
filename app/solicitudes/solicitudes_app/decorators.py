@@ -61,15 +61,8 @@ def puede_crear_tipos(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            messages.error(
-                request, 'Debes iniciar sesión para acceder a esta página.')
-            return redirect('solicitudes_app:login')
-
-        if not request.user.puede_crear_tipo_solicitud():
-            msg = 'No tienes permiso para crear tipos de solicitud.'
-            messages.error(request, msg)
-            return redirect('bienvenida')
+        if not request.user.is_authenticated: messages.error(request, 'Debes iniciar sesión para acceder a esta página.'); return redirect('solicitudes_app:login')
+        if not request.user.puede_crear_tipo_solicitud(): messages.error(request, 'No tienes permiso para crear tipos.'); return redirect('bienvenida')
 
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -81,15 +74,8 @@ def puede_atender_solicitudes(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            messages.error(
-                request, 'Debes iniciar sesión para acceder a esta página.')
-            return redirect('solicitudes_app:login')
-
-        if not request.user.puede_atender_solicitudes():
-            msg = 'No tienes permiso para atender solicitudes.'
-            messages.error(request, msg)
-            return redirect('bienvenida')
+        if not request.user.is_authenticated: messages.error(request, 'Debes iniciar sesión para acceder a esta página.'); return redirect('solicitudes_app:login')
+        if not request.user.puede_atender_solicitudes(): messages.error(request, 'No tienes permiso para atender.'); return redirect('bienvenida')
 
         return view_func(request, *args, **kwargs)
     return wrapper
