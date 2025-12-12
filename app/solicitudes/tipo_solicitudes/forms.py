@@ -126,7 +126,7 @@ class FormCampoFormulario(forms.ModelForm):
 class FormSolicitud(forms.ModelForm):
     class Meta:
         model = Solicitud
-        exclude = ['usuario', 'folio', 'fecha_creacion']
+        exclude = ['usuario', 'folio', 'fecha_creacion', 'estatus']
 
 
 class FormRespuestaCampo(forms.ModelForm):
@@ -146,4 +146,3 @@ class FormArchivoAdjunto(forms.ModelForm):
         model = ArchivoAdjunto
         exclude = ['respuesta', 'solicitud']
         fields = ['archivo', 'nombre']
-        
