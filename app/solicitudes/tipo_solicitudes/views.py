@@ -57,8 +57,19 @@ def agregar_o_editar(request, tipo_solicitud_id=None):
             return redirect('lista_tipo_solicitudes')
     else:
         form = FormTipoSolicitud(instance=tipo_solicitud)
+        
+    if tipo_solicitud:
+        titulo = "Editar tipo de solicitud"
+    else:
+        titulo = "Agregar tipo de solicitud"
+        
+    context = {
+        'form': form,
+        'titulo': titulo,
+        'instancia': tipo_solicitud
+    }
 
-    return render(request, 'agregar_solicitud.html', {'form': form})
+    return render(request, 'agregar_solicitud.html', context)
 
 
 def solicitudes_por_tipo(solicitudes_filtradas):
