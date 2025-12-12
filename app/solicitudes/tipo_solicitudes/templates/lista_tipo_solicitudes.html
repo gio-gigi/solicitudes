@@ -104,7 +104,8 @@
             // Actualizar el action del formulario de eliminación
             const formEliminacion = modal.querySelector('#formEliminacion');
             // La URL final debe ser algo como /eliminar/123/
-            // formEliminacion.setAttribute('action', ELIMINAR_URL_BASE + elementId);
+            formEliminacion.setAttribute('action', `/tipo-solicitud/eliminar/${elementId}/`);
+
         });
     });
 </script>

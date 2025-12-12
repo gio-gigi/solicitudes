@@ -20,12 +20,10 @@ urlpatterns = [
     path('formulario/campo/<int:campo_id>/eliminar/', views.eliminar_campo, name='eliminar_campo'),
     
     # NUEVAS RUTAS AGREGADAS
-    path('solicitud/crear/', views.crear_solicitud_usuario,
-         name='crear_solicitud_usuario'),
-    path('solicitud/mis-solicitudes/',
-         views.mis_solicitudes, name='mis_solicitudes'),
-    path('solicitud/<int:solicitud_id>/detalle/',
-         views.detalle_solicitud, name='detalle_solicitud'),
-    path('solicitud/<int:solicitud_id>/seguimiento/',
-         views.seguimiento_solicitud, name='seguimiento_solicitud'),
+    path('solicitud/crear/', views.crear_solicitud_usuario, name='crear_solicitud_usuario'),
+    path('solicitud/mis-solicitudes/', views.mis_solicitudes, name='mis_solicitudes'),
+    path('solicitud/<int:solicitud_id>/detalle/', views.detalle_solicitud, name='detalle_solicitud'),
+    path('solicitud/<int:solicitud_id>/seguimiento/', views.seguimiento_solicitud, name='seguimiento_solicitud'),
+    path('eliminar/<int:pk>/', views.eliminar_tipo_solicitud, name='eliminar_tipo_solicitud'),
+    path('formulario/eliminar/<int:pk>/', views.eliminar_formulario_solicitud, name='eliminar_formulario'),
 ]
