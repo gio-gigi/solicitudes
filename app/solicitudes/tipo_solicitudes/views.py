@@ -736,7 +736,7 @@ def crear_o_editar_campos(request, formulario_id, campo_id=None):
                 "formulario": formulario
             }, request=request)
             return JsonResponse({"ok": False, "html": html_errors})
-        
+
     # --- 3. VISTA NORMAL (Carga de página completa) ---
     else:
         form = FormCampoFormulario(formulario=formulario)
@@ -872,12 +872,12 @@ def crear_solicitud_usuario(request):
 def mis_solicitudes(request):
     """Vista para que el usuario vea sus propias solicitudes"""
     from django.db.models import OuterRef, Subquery
-    
+
     # Obtener el último estatus de cada solicitud
     ultimo_seguimiento = SeguimientoSolicitud.objects.filter(
         solicitud=OuterRef('pk')
     ).order_by('-fecha_creacion')
-    
+
     solicitudes = Solicitud.objects.filter(
         usuario=request.user
     ).annotate(
